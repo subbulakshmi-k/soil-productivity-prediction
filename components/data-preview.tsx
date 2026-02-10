@@ -26,21 +26,23 @@ export function DataPreview({ data, stats }: DataPreviewProps) {
   }
 
   const displayFields: (keyof SoilSample)[] = [
+    "soilType",
     "nitrogen",
     "phosphorus",
     "potassium",
     "ph",
-    "organicCarbon",
-    "soilMoisture",
+    "organic_matter",
+    "moisture",
   ]
 
   const fieldLabels: Record<string, string> = {
+    soilType: "Soil",
     nitrogen: "N",
     phosphorus: "P",
     potassium: "K",
     ph: "pH",
-    organicCarbon: "OC",
-    soilMoisture: "Moisture",
+    organic_matter: "OC",
+    moisture: "Moisture",
   }
 
   const getTrendIcon = (value: number, mean: number) => {
@@ -87,13 +89,21 @@ export function DataPreview({ data, stats }: DataPreviewProps) {
                 <TableRow key={sample.id} className="border-border">
                   <TableCell className="font-mono text-sm text-muted-foreground">{idx + 1}</TableCell>
                   {displayFields.map((field) => (
-                    <TableCell key={field}>
+                  <TableCell key={field}>
+                    {field === 'soilType' ? (
                       <div className="flex items-center gap-1">
-                        <span className="text-foreground">{(sample[field] as number).toFixed(2)}</span>
-                        {stats?.summary[field] && getTrendIcon(sample[field] as number, stats.summary[field].mean)}
+                        <span className="text-foreground">{sample[field] as string || 'Unknown'}</span>
                       </div>
-                    </TableCell>
-                  ))}
+                    ) : (
+                      <div className="flex items-center gap-1">
+                        <span className="text-foreground">
+                          {sample[field] != null ? (sample[field] as number).toFixed(2) : 'N/A'}
+                        </span>
+                        {stats?.summary[field] && sample[field] != null && getTrendIcon(sample[field] as number, stats.summary[field].mean)}
+                      </div>
+                    )}
+                  </TableCell>
+                ))}
                 </TableRow>
               ))}
             </TableBody>

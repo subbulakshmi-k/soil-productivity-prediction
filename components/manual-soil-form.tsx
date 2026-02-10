@@ -2,14 +2,15 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Plus, Trash2, FlaskConical } from "lucide-react"
 import { toast } from "sonner"
-import { predictSingleSample, checkBackendHealth } from "@/lib/api-service"
+import { predictSingleSample, checkBackendHealth, getSoilTypes } from "@/lib/api-service"
 import type { SoilSample, DatasetStats } from "@/lib/types"
 
 interface ManualSoilFormProps {
@@ -18,22 +19,23 @@ interface ManualSoilFormProps {
 }
 
 const defaultSampleValues = {
-  nitrogen: 0,
-  phosphorus: 0,
-  potassium: 0,
-  ph: 7,
-  organicCarbon: 0,
-  electricalConductivity: 0,
-  sulphur: 0,
-  zinc: 0,
-  iron: 0,
-  copper: 0,
-  manganese: 0,
-  boron: 0,
-  soilMoisture: 0,
-  temperature: 25,
-  humidity: 50,
-  rainfall: 0,
+  soilType: '' as string | null,
+  nitrogen: null,
+  phosphorus: null,
+  potassium: null,
+  ph:null,
+  organicCarbon: null,
+  electricalConductivity: null,
+  sulphur: null,
+  zinc: null,
+  iron:null,
+  copper: null,
+  manganese: null,
+  boron: null,
+  soilMoisture: null,
+  temperature: null,
+  humidity: null,
+  rainfall: null,
 }
 
 const formFields = [
@@ -86,6 +88,21 @@ export function ManualSoilForm({ onDataLoaded, existingData }: ManualSoilFormPro
   const [formValues, setFormValues] = useState(defaultSampleValues)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [useBackend, setUseBackend] = useState<boolean | null>(null)
+  const [soilTypes, setSoilTypes] = useState<string[]>([])
+
+  useEffect(() => {
+    const fetchSoilTypes = async () => {
+      try {
+        const types = await getSoilTypes()
+        setSoilTypes(types)
+      } catch (error) {
+        console.error('Failed to fetch soil types:', error)
+        // Fallback to common soil types
+        setSoilTypes(['Loam', 'Clay', 'Sandy', 'Silt', 'Peat', 'Chalk', 'Gravel', 'Sand', 'Clay Loam', 'Sandy Loam', 'Silty Clay', 'Sandy Clay', 'Loamy Sand', 'Silt Loam', 'Peat Loam', 'Chalky Loam', 'Gravelly Loam', 'Silty Loam', 'Clay Sand', 'Humus', 'Compost', 'Topsoil', 'Subsoil', 'Black Soil', 'Red Soil', 'Yellow Soil', 'Alluvial Soil', 'Laterite Soil', 'Saline Soil', 'Acidic Soil', 'Alkaline Soil'])
+      }
+    }
+    fetchSoilTypes()
+  }, [])
 
   const handleInputChange = (key: string, value: string) => {
     setFormValues((prev) => ({
@@ -94,9 +111,29 @@ export function ManualSoilForm({ onDataLoaded, existingData }: ManualSoilFormPro
     }))
   }
 
+  const handleSoilTypeChange = (value: string) => {
+    setFormValues((prev) => ({
+      ...prev,
+      soilType: value,
+    }))
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsSubmitting(true)
+
+    // Validate all required fields are filled
+    const requiredFields = ['nitrogen', 'phosphorus', 'potassium', 'ph', 'organicCarbon', 
+                          'electricalConductivity', 'sulphur', 'zinc', 'iron', 'copper', 
+                          'manganese', 'boron', 'soilMoisture', 'temperature', 'humidity', 'rainfall']
+    
+    const missingFields = requiredFields.filter(field => formValues[field as keyof typeof formValues] === null || formValues[field as keyof typeof formValues] === '')
+    
+    if (missingFields.length > 0) {
+      toast.error(`Please fill in all required fields: ${missingFields.join(', ')}`)
+      setIsSubmitting(false)
+      return
+    }
 
     const newSample: SoilSample = {
       id: generateId(),
@@ -106,7 +143,7 @@ export function ManualSoilForm({ onDataLoaded, existingData }: ManualSoilFormPro
     try {
       // Check if backend is available and get prediction
       const health = await checkBackendHealth()
-      const backendAvailable = health !== null && health.model_loaded
+      const backendAvailable = health && health.status === 'healthy' && health.model_loaded
       setUseBackend(backendAvailable)
 
       if (backendAvailable) {
@@ -149,6 +186,24 @@ export function ManualSoilForm({ onDataLoaded, existingData }: ManualSoilFormPro
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="soilType" className="text-xs text-muted-foreground">
+              Soil Type
+            </Label>
+            <Select value={formValues.soilType || ''} onValueChange={handleSoilTypeChange}>
+              <SelectTrigger className="h-9 bg-background">
+                <SelectValue placeholder="Select soil type" />
+              </SelectTrigger>
+              <SelectContent>
+                {soilTypes.map((type) => (
+                  <SelectItem key={type} value={type}>
+                    {type}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {formFields.map((field) => (
               <div key={field.key} className="space-y-1.5">
@@ -161,7 +216,7 @@ export function ManualSoilForm({ onDataLoaded, existingData }: ManualSoilFormPro
                   min={field.min}
                   max={field.max}
                   step={field.step}
-                  value={formValues[field.key as keyof typeof formValues]}
+                  value={formValues[field.key as keyof typeof formValues] ??''}
                   onChange={(e) => handleInputChange(field.key, e.target.value)}
                   className="h-9 bg-background"
                 />

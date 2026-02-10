@@ -7,9 +7,11 @@ import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
 import { Upload, FileSpreadsheet, CheckCircle2, AlertCircle, X } from "lucide-react"
-import { toast } from "sonner"
+import { soilDataStore } from "@/lib/soil-data-store"
+import { calculateStats } from "@/lib/utils"
 import type { SoilSample, DatasetStats } from "@/lib/types"
 import { predictFromFile, checkBackendHealth } from "@/lib/api-service"
+import { toast } from "@/hooks/use-toast"
 
 interface DataUploadProps {
   onDataLoaded: (data: SoilSample[], stats: DatasetStats) => void
@@ -22,25 +24,62 @@ export function DataUpload({ onDataLoaded }: DataUploadProps) {
   const [error, setError] = useState<string | null>(null)
   const [backendAvailable, setBackendAvailable] = useState<boolean | null>(null)
 
-  const parseCSV = (text: string): SoilSample[] => {
-    const lines = text.trim().split("\n")
-    const headers = lines[0].split(",").map((h) => h.trim().toLowerCase())
-
-    const fieldMap: Record<string, keyof SoilSample> = {
+  const detectColumns = (text: string): { detected: string[], mapped: string[], unmapped: string[] } => {
+    // Remove BOM and normalize line endings
+    const cleanText = text.replace(/^\uFEFF/, '').replace(/\r\n/g, '\n').replace(/\r/g, '\n')
+    const lines = cleanText.trim().split("\n")
+    
+    if (lines.length === 0) {
+      return { detected: [], mapped: [], unmapped: [] }
+    }
+    
+    // Detect delimiter (comma, semicolon, or tab)
+    const firstLine = lines[0]
+    let delimiter = ','
+    const commaCount = (firstLine.match(/,/g) || []).length
+    const semicolonCount = (firstLine.match(/;/g) || []).length
+    const tabCount = (firstLine.match(/\t/g) || []).length
+    
+    if (semicolonCount > commaCount && semicolonCount > tabCount) {
+      delimiter = ';'
+    } else if (tabCount > commaCount && tabCount > semicolonCount) {
+      delimiter = '\t'
+    }
+    
+    const headers = firstLine.split(delimiter).map((h) => h.trim().toLowerCase().replace(/"/g, ''))
+    
+    const fieldMap: Record<string, string> = {
+      // Basic nutrients
       n: "nitrogen",
       nitrogen: "nitrogen",
-      p: "phosphorus",
+      p: "phosphorus", 
       phosphorus: "phosphorus",
       k: "potassium",
       potassium: "potassium",
+      
+      // Soil properties
       ph: "ph",
+      ph_value: "ph",
+      acidity: "ph",
+      
+      // Organic matter
       oc: "organicCarbon",
       organic_carbon: "organicCarbon",
       organiccarbon: "organicCarbon",
+      om: "organicCarbon",
+      organic_matter: "organicCarbon",
+      organicmatter: "organicCarbon",
+      
+      // Electrical conductivity
       ec: "electricalConductivity",
       electrical_conductivity: "electricalConductivity",
+      conductivity: "electricalConductivity",
+      electricalconductivity: "electricalConductivity",
+      
+      // Micronutrients
       s: "sulphur",
       sulphur: "sulphur",
+      sulfur: "sulphur",
       zn: "zinc",
       zinc: "zinc",
       fe: "iron",
@@ -51,20 +90,225 @@ export function DataUpload({ onDataLoaded }: DataUploadProps) {
       manganese: "manganese",
       b: "boron",
       boron: "boron",
+      
+      // Environmental factors
       moisture: "soilMoisture",
       soil_moisture: "soilMoisture",
       soilmoisture: "soilMoisture",
+      water_content: "soilMoisture",
+      watercontent: "soilMoisture",
       temperature: "temperature",
       temp: "temperature",
+      soil_temp: "temperature",
+      soiltemp: "temperature",
       humidity: "humidity",
+      relative_humidity: "humidity",
+      relativehumidity: "humidity",
       rainfall: "rainfall",
       rain: "rainfall",
+      precipitation: "rainfall",
+      
+      // Productivity
+      productivity: "productivityScore",
+      productivity_score: "productivityScore",
+      yield: "productivityScore",
+      crop_yield: "productivityScore",
+      
+      // Other
+      soil_type: "soilType",
+      soiltype: "soilType",
+      texture: "soilType",
+      location: "location",
+      site: "location",
+      plot: "location",
+    }
+
+    const mapped: string[] = []
+    const unmapped: string[] = []
+
+    headers.forEach(header => {
+      if (fieldMap[header]) {
+        mapped.push(`${header} → ${fieldMap[header]}`)
+      } else {
+        unmapped.push(header)
+      }
+    })
+
+    return {
+      detected: headers,
+      mapped,
+      unmapped
+    }
+  }
+
+  const parseExcel = async (file: File): Promise<string> => {
+    const XLSX = await import('xlsx')
+    
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      
+      reader.onload = (e) => {
+        try {
+          const data = new Uint8Array(e.target?.result as ArrayBuffer)
+          const workbook = XLSX.read(data, { type: 'array' })
+          
+          // Get the first worksheet
+          const worksheetName = workbook.SheetNames[0]
+          const worksheet = workbook.Sheets[worksheetName]
+          
+          // Convert to CSV
+          const csv = XLSX.utils.sheet_to_csv(worksheet)
+          resolve(csv)
+        } catch (error) {
+          reject(new Error("Failed to parse Excel file. Please ensure it's a valid Excel file."))
+        }
+      }
+      
+      reader.onerror = () => {
+        reject(new Error("Failed to read Excel file."))
+      }
+      
+      reader.readAsArrayBuffer(file)
+    })
+  }
+
+  const parseCSV = (text: string): SoilSample[] => {
+    // Remove BOM and normalize line endings
+    const cleanText = text.replace(/^\uFEFF/, '').replace(/\r\n/g, '\n').replace(/\r/g, '\n')
+    const lines = cleanText.trim().split("\n")
+    
+    if (lines.length === 0) {
+      throw new Error("File is empty or contains no valid data")
+    }
+    
+    // Detect delimiter (comma, semicolon, or tab)
+    const firstLine = lines[0]
+    let delimiter = ','
+    const commaCount = (firstLine.match(/,/g) || []).length
+    const semicolonCount = (firstLine.match(/;/g) || []).length
+    const tabCount = (firstLine.match(/\t/g) || []).length
+    
+    if (semicolonCount > commaCount && semicolonCount > tabCount) {
+      delimiter = ';'
+    } else if (tabCount > commaCount && tabCount > semicolonCount) {
+      delimiter = '\t'
+    }
+    
+    const headers = firstLine.split(delimiter).map((h) => h.trim().toLowerCase().replace(/"/g, ''))
+
+    // Enhanced field mapping for custom datasets
+    const fieldMap: Record<string, keyof SoilSample> = {
+      // Basic nutrients
+      n: "nitrogen",
+      nitrogen: "nitrogen",
+      p: "phosphorus",
+      phosphorus: "phosphorus",
+      k: "potassium",
+      potassium: "potassium",
+      
+      // Soil properties
+      ph: "ph",
+      ph_value: "ph",
+      acidity: "ph",
+      
+      // Organic matter variations
+      oc: "organicCarbon",
+      organic_carbon: "organicCarbon",
+      organiccarbon: "organicCarbon",
+      om: "organicCarbon",
+      organic_matter: "organicCarbon",
+      organicmatter: "organicCarbon",
+      
+      // Electrical conductivity
+      ec: "electricalConductivity",
+      electrical_conductivity: "electricalConductivity",
+      conductivity: "electricalConductivity",
+      electricalconductivity: "electricalConductivity",
+      
+      // Micronutrients
+      s: "sulphur",
+      sulphur: "sulphur",
+      sulfur: "sulphur",
+      zn: "zinc",
+      zinc: "zinc",
+      fe: "iron",
+      iron: "iron",
+      cu: "copper",
+      copper: "copper",
+      mn: "manganese",
+      manganese: "manganese",
+      b: "boron",
+      boron: "boron",
+      
+      // Environmental factors
+      moisture: "soilMoisture",
+      soil_moisture: "soilMoisture",
+      soilmoisture: "soilMoisture",
+      water_content: "soilMoisture",
+      watercontent: "soilMoisture",
+      
+      temperature: "temperature",
+      temp: "temperature",
+      soil_temp: "temperature",
+      soiltemp: "temperature",
+      
+      humidity: "humidity",
+      relative_humidity: "humidity",
+      relativehumidity: "humidity",
+      
+      rainfall: "rainfall",
+      rain: "rainfall",
+      precipitation: "rainfall",
+      
+      // Productivity related (if present in dataset)
+      productivity: "productivityScore",
+      productivity_score: "productivityScore",
+      yield: "productivityScore",
+      crop_yield: "productivityScore",
+      
+      // Soil type (if present)
+      soil_type: "soilType",
+      soiltype: "soilType", 
+      texture: "soilType",
+      soil: "soilType",
+      soil_type_name: "soilType",
+      soiltype_name: "soilType",
+      soil_name: "soilType",
+      soil_class: "soilType",
+      soil_classification: "soilType",
+      soil_category: "soilType",
+      
+      // Location (if present)
+      location: "location",
+      site: "location",
+      plot: "location",
     }
 
     const samples: SoilSample[] = []
 
     for (let i = 1; i < lines.length; i++) {
-      const values = lines[i].split(",").map((v) => v.trim())
+      const line = lines[i].trim()
+      if (!line) continue // Skip empty lines
+      
+      // Simple CSV parsing - handle quoted values
+      const values: string[] = []
+      let currentValue = ''
+      let inQuotes = false
+      
+      for (let j = 0; j < line.length; j++) {
+        const char = line[j]
+        
+        if (char === '"') {
+          inQuotes = !inQuotes
+        } else if (char === delimiter && !inQuotes) {
+          values.push(currentValue.trim())
+          currentValue = ''
+        } else {
+          currentValue += char
+        }
+      }
+      values.push(currentValue.trim()) // Add last value
+      
       if (values.length < headers.length) continue
 
       const sample: Partial<SoilSample> = {
@@ -77,72 +321,35 @@ export function DataUpload({ onDataLoaded }: DataUploadProps) {
           const value = Number.parseFloat(values[idx])
           if (!isNaN(value)) {
             ;(sample as Record<string, number | string>)[mappedField] = value
+          } else if (values[idx] && typeof values[idx] === 'string') {
+            // Handle string values like soil type, location
+            ;(sample as Record<string, number | string>)[mappedField] = values[idx]
           }
         }
       })
 
-      // Set defaults for missing values
+      // Set intelligent defaults for missing values based on agricultural standards
       sample.nitrogen = sample.nitrogen ?? 0
       sample.phosphorus = sample.phosphorus ?? 0
       sample.potassium = sample.potassium ?? 0
-      sample.ph = sample.ph ?? 7
-      sample.organicCarbon = sample.organicCarbon ?? 0
-      sample.electricalConductivity = sample.electricalConductivity ?? 0
+      sample.ph = sample.ph ?? 6.5  // Neutral soil pH
+      sample.organicCarbon = sample.organicCarbon ?? 0.5  // Low organic carbon
+      sample.electricalConductivity = sample.electricalConductivity ?? 1.0  // Normal EC
       sample.sulphur = sample.sulphur ?? 0
       sample.zinc = sample.zinc ?? 0
       sample.iron = sample.iron ?? 0
       sample.copper = sample.copper ?? 0
       sample.manganese = sample.manganese ?? 0
       sample.boron = sample.boron ?? 0
-      sample.soilMoisture = sample.soilMoisture ?? 50
-      sample.temperature = sample.temperature ?? 25
-      sample.humidity = sample.humidity ?? 60
-      sample.rainfall = sample.rainfall ?? 100
+      sample.soilMoisture = sample.soilMoisture ?? 60  // Moderate moisture
+      sample.temperature = sample.temperature ?? 25  // Room temperature
+      sample.humidity = sample.humidity ?? 50  // Moderate humidity
+      sample.rainfall = sample.rainfall ?? 100  // Moderate rainfall
 
       samples.push(sample as SoilSample)
     }
 
     return samples
-  }
-
-  const calculateStats = (data: SoilSample[]): DatasetStats => {
-    const numericFields: (keyof SoilSample)[] = [
-      "nitrogen",
-      "phosphorus",
-      "potassium",
-      "ph",
-      "organicCarbon",
-      "electricalConductivity",
-      "sulphur",
-      "zinc",
-      "iron",
-      "copper",
-      "manganese",
-      "boron",
-      "soilMoisture",
-      "temperature",
-      "humidity",
-      "rainfall",
-    ]
-
-    const summary: DatasetStats["summary"] = {}
-
-    numericFields.forEach((field) => {
-      const values = data.map((d) => d[field] as number).filter((v) => !isNaN(v))
-      if (values.length > 0) {
-        const min = Math.min(...values)
-        const max = Math.max(...values)
-        const mean = values.reduce((a, b) => a + b, 0) / values.length
-        const std = Math.sqrt(values.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / values.length)
-        summary[field] = { min, max, mean, std }
-      }
-    })
-
-    return {
-      totalSamples: data.length,
-      features: numericFields as string[],
-      summary,
-    }
   }
 
   const onDrop = useCallback(
@@ -164,7 +371,10 @@ export function DataUpload({ onDataLoaded }: DataUploadProps) {
           setBackendAvailable(true)
           // Use backend API for prediction
           setUploadProgress(20)
-          toast.info("Using backend ML model for prediction...")
+          toast({
+            title: "Processing",
+            description: "Using backend ML model for prediction...",
+          })
 
           const result = await predictFromFile(file)
           setUploadProgress(90)
@@ -172,18 +382,46 @@ export function DataUpload({ onDataLoaded }: DataUploadProps) {
           const stats = calculateStats(result.data)
           onDataLoaded(result.data, stats)
           setUploadProgress(100)
-          toast.success(
-            `Successfully processed ${result.data.length} samples with ML predictions (Avg: ${result.averageProductivity.toFixed(1)})`
-          )
+          toast({
+            title: "Success",
+            description: `Successfully processed ${result.data.length} samples with ML predictions (Avg: ${result.averageProductivity.toFixed(1)})`,
+          })
         } else {
           setBackendAvailable(false)
           // Fallback to client-side parsing
-          toast.warning("Backend unavailable, using client-side processing")
+          toast({
+            title: "Warning",
+            description: "Backend unavailable, using client-side processing",
+            variant: "destructive",
+          })
           const progressInterval = setInterval(() => {
             setUploadProgress((prev) => Math.min(prev + 10, 90))
           }, 100)
 
-          const text = await file.text()
+          let text: string
+          
+          // Handle different file types
+          if (file.name.endsWith('.csv')) {
+            text = await file.text()
+          } else if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
+            text = await parseExcel(file)
+          } else {
+            throw new Error("Unsupported file format. Please use CSV, XLS, or XLSX files.")
+          }
+          
+          // Detect and show columns found in the dataset
+          const columnInfo = detectColumns(text)
+          console.log("Detected columns:", columnInfo.detected)
+          console.log("Mapped columns:", columnInfo.mapped)
+          if (columnInfo.unmapped.length > 0) {
+            console.log("Unmapped columns:", columnInfo.unmapped)
+            toast({
+              title: "Dataset Info",
+              description: `Found ${columnInfo.mapped.length} mapped columns. ${columnInfo.unmapped.length} columns were not recognized.`,
+              variant: "default",
+            })
+          }
+          
           const data = parseCSV(text)
 
           clearInterval(progressInterval)
@@ -195,11 +433,18 @@ export function DataUpload({ onDataLoaded }: DataUploadProps) {
 
           const stats = calculateStats(data)
           onDataLoaded(data, stats)
-          toast.success(`Successfully loaded ${data.length} soil samples`)
+          toast({
+            title: "Success",
+            description: `Successfully loaded ${data.length} soil samples`,
+          })
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to process file")
-        toast.error(err instanceof Error ? err.message : "Failed to process file")
+        toast({
+          title: "Error",
+          description: err instanceof Error ? err.message : "Failed to process file",
+          variant: "destructive",
+        })
       } finally {
         setIsProcessing(false)
       }
@@ -316,6 +561,7 @@ export function DataUpload({ onDataLoaded }: DataUploadProps) {
                 "Temp",
                 "Humidity",
                 "Rainfall",
+                "Soil Type",
               ].map((col) => (
                 <Badge key={col} variant="outline" className="text-xs">
                   {col}

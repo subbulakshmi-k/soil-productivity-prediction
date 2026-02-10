@@ -20,7 +20,7 @@ export const soilDataStore = {
     predictionResults = predictions
   },
   getStats: () => datasetStats,
-  setStats: (stats: DatasetStats) => {
+  setStats: (stats: DatasetStats | null) => {
     datasetStats = stats
   },
   clear: () => {

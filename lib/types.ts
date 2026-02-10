@@ -1,24 +1,28 @@
 export interface SoilSample {
   id: string
-  nitrogen: number
-  phosphorus: number
-  potassium: number
-  ph: number
-  organicCarbon: number
-  electricalConductivity: number
-  sulphur: number
-  zinc: number
-  iron: number
-  copper: number
-  manganese: number
-  boron: number
-  soilMoisture: number
-  temperature: number
-  humidity: number
-  rainfall: number
-  cluster?: number
-  productivityScore?: number
-  productivityClass?: "Low" | "Medium" | "High"
+  nitrogen: number| null
+  phosphorus: number| null
+  potassium: number| null
+  ph: number| null
+  organicCarbon: number| null
+  organic_matter: number| null
+  electricalConductivity: number| null
+  sulphur: number| null
+  zinc: number| null
+  iron: number| null
+  copper: number| null
+  manganese:number| null
+  boron: number| null
+  soilMoisture: number| null
+  moisture: number| null
+  temperature: number| null
+  humidity: number| null
+  rainfall: number| null
+  soilType?: string| null
+  location?: string| null
+  cluster?: number| null
+  productivityScore?: number| null
+  productivityClass?: "Low" | "Medium" | "High"| null
 }
 
 export interface ClusterResult {
@@ -47,5 +51,8 @@ export interface DatasetStats {
       mean: number
       std: number
     }
+  }
+  soilTypeDistribution?: {
+    [key: string]: number
   }
 }

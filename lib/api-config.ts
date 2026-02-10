@@ -1,10 +1,9 @@
 // API Configuration
 export const API_CONFIG = {
-  // Use relative URLs for API routes to avoid CORS issues
-  // These will be handled by Next.js API routes
-  BASE_URL: '',
+  // Backend URL for Python Flask API
+  BACKEND_URL: process.env.NEXT_PUBLIC_BACKEND_URL || 'http://127.0.0.1:5000',
   
-  // API endpoints - these now point to our Next.js API routes
+  // API endpoints
   ENDPOINTS: {
     HEALTH: '/api/health',
     PREDICT: '/api/predict',
@@ -15,7 +14,12 @@ export const API_CONFIG = {
   TIMEOUT: 30000,
 }
 
-// Helper function to get full API URL
+// Helper function to get backend API URL
+export function getBackendUrl(endpoint: string): string {
+  return `${API_CONFIG.BACKEND_URL}${endpoint}`;
+}
+
+// Helper function to get full API URL (for Next.js API routes)
 export function getApiUrl(endpoint: string): string {
   // For client-side requests, use relative URLs to avoid CORS
   if (typeof window !== 'undefined') {

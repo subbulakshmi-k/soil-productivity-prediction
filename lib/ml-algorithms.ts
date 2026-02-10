@@ -20,22 +20,22 @@ function euclideanDistance(a: number[], b: number[]): number {
 // Extract features from soil sample for ML processing
 function extractFeatures(sample: SoilSample): number[] {
   return [
-    sample.nitrogen,
-    sample.phosphorus,
-    sample.potassium,
-    sample.ph,
-    sample.organicCarbon,
-    sample.electricalConductivity,
-    sample.sulphur,
-    sample.zinc,
-    sample.iron,
-    sample.copper,
-    sample.manganese,
-    sample.boron,
-    sample.soilMoisture,
-    sample.temperature,
-    sample.humidity,
-    sample.rainfall,
+    sample.nitrogen || 0,
+    sample.phosphorus || 0,
+    sample.potassium || 0,
+    sample.ph || 7,
+    sample.organicCarbon || 0,
+    sample.electricalConductivity || 0,
+    sample.sulphur || 0,
+    sample.zinc || 0,
+    sample.iron || 0,
+    sample.copper || 0,
+    sample.manganese || 0,
+    sample.boron || 0,
+    sample.soilMoisture || 50,
+    sample.temperature || 25,
+    sample.humidity || 60,
+    sample.rainfall || 100,
   ]
 }
 
@@ -149,45 +149,45 @@ export function predictProductivity(data: SoilSample[]): PredictionResult[] {
     const factors: string[] = []
 
     // Nitrogen (optimal: 250-500 kg/ha)
-    const nScore = sample.nitrogen > 250 && sample.nitrogen < 500 ? 15 : sample.nitrogen > 100 ? 10 : 5
+    const nScore = (sample.nitrogen && sample.nitrogen > 250 && sample.nitrogen < 500) ? 15 : (sample.nitrogen && sample.nitrogen > 100) ? 10 : 5
     score += nScore
     if (nScore < 10) factors.push("Low nitrogen levels")
 
     // Phosphorus (optimal: 25-50 kg/ha)
-    const pScore = sample.phosphorus > 25 && sample.phosphorus < 50 ? 15 : sample.phosphorus > 10 ? 10 : 5
+    const pScore = (sample.phosphorus && sample.phosphorus > 25 && sample.phosphorus < 50) ? 15 : (sample.phosphorus && sample.phosphorus > 10) ? 10 : 5
     score += pScore
     if (pScore < 10) factors.push("Phosphorus deficiency")
 
     // Potassium (optimal: 200-400 kg/ha)
-    const kScore = sample.potassium > 200 && sample.potassium < 400 ? 15 : sample.potassium > 100 ? 10 : 5
+    const kScore = (sample.potassium && sample.potassium > 200 && sample.potassium < 400) ? 15 : (sample.potassium && sample.potassium > 100) ? 10 : 5
     score += kScore
     if (kScore < 10) factors.push("Low potassium content")
 
     // pH (optimal: 6.0-7.5)
-    const phScore = sample.ph >= 6.0 && sample.ph <= 7.5 ? 15 : sample.ph >= 5.5 && sample.ph <= 8.0 ? 10 : 5
+    const phScore = (sample.ph && sample.ph >= 6.0 && sample.ph <= 7.5) ? 15 : (sample.ph && sample.ph >= 5.5 && sample.ph <= 8.0) ? 10 : 5
     score += phScore
-    if (sample.ph < 6.0) factors.push("Soil too acidic - consider liming")
-    if (sample.ph > 7.5) factors.push("Soil too alkaline - consider sulfur application")
+    if (sample.ph && sample.ph < 6.0) factors.push("Soil too acidic - consider liming")
+    if (sample.ph && sample.ph > 7.5) factors.push("Soil too alkaline - consider sulfur application")
 
     // Organic Carbon (optimal: > 0.75%)
-    const ocScore = sample.organicCarbon > 0.75 ? 15 : sample.organicCarbon > 0.5 ? 10 : 5
+    const ocScore = (sample.organicCarbon && sample.organicCarbon > 0.75) ? 15 : (sample.organicCarbon && sample.organicCarbon > 0.5) ? 10 : 5
     score += ocScore
     if (ocScore < 10) factors.push("Low organic matter - add compost")
 
     // Soil Moisture (optimal: 40-60%)
     const moistureScore =
-      sample.soilMoisture >= 40 && sample.soilMoisture <= 60 ? 15 : sample.soilMoisture >= 30 ? 10 : 5
+      (sample.soilMoisture && sample.soilMoisture >= 40 && sample.soilMoisture <= 60) ? 15 : (sample.soilMoisture && sample.soilMoisture >= 30) ? 10 : 5
     score += moistureScore
     if (moistureScore < 10) factors.push("Adjust irrigation practices")
 
     // Add bonus for micronutrients
-    if (sample.zinc > 0.5) score += 2
+    if (sample.zinc && sample.zinc > 0.5) score += 2
     else factors.push("Zinc supplementation recommended")
 
-    if (sample.iron > 4) score += 2
+    if (sample.iron && sample.iron > 4) score += 2
     else factors.push("Iron deficiency detected")
 
-    if (sample.boron > 0.5) score += 1
+    if (sample.boron && sample.boron > 0.5) score += 1
 
     // Calculate final score (0-100)
     const finalScore = Math.min(100, Math.round((score / 90) * 100))
@@ -271,7 +271,7 @@ export function performPCA(
       y: y * 10,
       cluster: sample.cluster ?? 0,
       id: sample.id,
-      score: sample.productivityScore,
+      score: sample.productivityScore || undefined,
     }
   })
 }

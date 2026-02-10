@@ -185,7 +185,7 @@ Returns available soil types.
 
 **Response:**
 ```json
-["Loam", "Clay", "Sandy", "Silt", "Peat"]
+["Loam", "Clay", "Sandy", "Silt", "Peat", "Chalk", "Gravel", "Sand", "Clay Loam", "Sandy Loam", "Silty Clay", "Sandy Clay", "Loamy Sand", "Silt Loam", "Peat Loam", "Chalky Loam", "Gravelly Loam", "Silty Loam", "Clay Sand", "Humus", "Compost", "Topsoil", "Subsoil", "Black Soil", "Red Soil", "Yellow Soil", "Alluvial Soil", "Laterite Soil", "Saline Soil", "Acidic Soil", "Alkaline Soil"]
 ```
 
 ### Model Information

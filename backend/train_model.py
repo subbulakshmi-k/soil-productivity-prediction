@@ -17,19 +17,42 @@ def train_soil_model():
         'potassium': np.random.uniform(50, 300, n_samples),
         'ph': np.random.uniform(4.5, 8.5, n_samples),
         'organic_matter': np.random.uniform(0.5, 5.0, n_samples),
+        'electricalConductivity': np.random.uniform(0.1, 5.0, n_samples),
+        'sulphur': np.random.uniform(5, 50, n_samples),
+        'zinc': np.random.uniform(0.5, 10, n_samples),
+        'iron': np.random.uniform(2, 50, n_samples),
+        'copper': np.random.uniform(0.2, 5, n_samples),
+        'manganese': np.random.uniform(1, 25, n_samples),
+        'boron': np.random.uniform(0.1, 2, n_samples),
         'moisture': np.random.uniform(10, 60, n_samples),
         'temperature': np.random.uniform(15, 35, n_samples),
+        'humidity': np.random.uniform(30, 80, n_samples),
+        'rainfall': np.random.uniform(50, 300, n_samples),
+        'soilType': np.random.choice(['Loam', 'Clay', 'Sandy', 'Silt', 'Peat', 'Chalk', 'Gravel', 'Sand', 'Clay Loam', 'Sandy Loam', 'Silty Clay', 'Sandy Clay', 'Loamy Sand', 'Silt Loam', 'Peat Loam', 'Chalky Loam', 'Gravelly Loam', 'Silty Loam', 'Clay Sand', 'Humus', 'Compost', 'Topsoil', 'Subsoil', 'Black Soil', 'Red Soil', 'Yellow Soil', 'Alluvial Soil', 'Laterite Soil', 'Saline Soil', 'Acidic Soil', 'Alkaline Soil', 'Loamy', 'Silty', 'Sandy Clay Loam', 'Silty Clay Loam', 'Clayey', 'Silty Sand', 'Clayey Sand'], n_samples),
     }
     
     # Create target variable (productivity score 0-100)
     X = pd.DataFrame(data)
+    
+    # Encode soilType as numeric using one-hot encoding
+    X = pd.get_dummies(X, columns=['soilType'], prefix='soilType')
     # Calculate base productivity score
     base_score = (
-        0.3 * (X['nitrogen'] / 200) * 100 +  # Normalize to 0-100 scale
-        0.2 * (X['phosphorus'] / 100) * 100 +
-        0.2 * (X['potassium'] / 300) * 100 +
-        0.15 * (X['organic_matter'] / 5.0) * 100 +
-        0.1 * (X['moisture'] / 60) * 100 +
+        0.15 * (X['nitrogen'] / 200) * 100 +  # Normalize to 0-100 scale
+        0.10 * (X['phosphorus'] / 100) * 100 +
+        0.10 * (X['potassium'] / 300) * 100 +
+        0.08 * (X['organic_matter'] / 5.0) * 100 +
+        0.05 * (X['electricalConductivity'] / 5.0) * 100 +
+        0.05 * (X['sulphur'] / 50) * 100 +
+        0.03 * (X['zinc'] / 10) * 100 +
+        0.03 * (X['iron'] / 50) * 100 +
+        0.03 * (X['copper'] / 5) * 100 +
+        0.03 * (X['manganese'] / 25) * 100 +
+        0.02 * (X['boron'] / 2) * 100 +
+        0.10 * (X['moisture'] / 60) * 100 +
+        0.08 * (X['temperature'] / 35) * 100 +
+        0.08 * (X['humidity'] / 80) * 100 +
+        0.07 * (X['rainfall'] / 300) * 100 +
         0.05 * (1 - abs(X['ph'] - 7.0) / 3.5) * 100  # Optimal pH around 7
     )
     

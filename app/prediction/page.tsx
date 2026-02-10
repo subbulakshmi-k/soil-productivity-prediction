@@ -335,6 +335,7 @@ export default function PredictionPage() {
                           <TableHeader>
                             <TableRow className="border-border">
                               <TableHead className="text-muted-foreground">Sample</TableHead>
+                              <TableHead className="text-muted-foreground">Soil Type</TableHead>
                               <TableHead className="text-muted-foreground">N</TableHead>
                               <TableHead className="text-muted-foreground">P</TableHead>
                               <TableHead className="text-muted-foreground">K</TableHead>
@@ -348,10 +349,11 @@ export default function PredictionPage() {
                             {predictions.map((pred, idx) => (
                               <TableRow key={pred.sample.id} className="border-border">
                                 <TableCell className="font-mono text-sm text-muted-foreground">{idx + 1}</TableCell>
-                                <TableCell className="text-foreground">{pred.sample.nitrogen.toFixed(1)}</TableCell>
-                                <TableCell className="text-foreground">{pred.sample.phosphorus.toFixed(1)}</TableCell>
-                                <TableCell className="text-foreground">{pred.sample.potassium.toFixed(1)}</TableCell>
-                                <TableCell className="text-foreground">{pred.sample.ph.toFixed(2)}</TableCell>
+                                <TableCell className="text-foreground">{pred.sample.soilType || 'Unknown'}</TableCell>
+                                <TableCell className="text-foreground">{(pred.sample.nitrogen || 0).toFixed(1)}</TableCell>
+                                <TableCell className="text-foreground">{(pred.sample.phosphorus || 0).toFixed(1)}</TableCell>
+                                <TableCell className="text-foreground">{(pred.sample.potassium || 0).toFixed(1)}</TableCell>
+                                <TableCell className="text-foreground">{(pred.sample.ph || 7).toFixed(2)}</TableCell>
                                 <TableCell>
                                   <div className="flex items-center gap-2">
                                     <Progress value={pred.productivityScore} className="w-16 h-2" />
@@ -386,7 +388,12 @@ export default function PredictionPage() {
                           {predictions.slice(0, 20).map((pred, idx) => (
                             <div key={pred.sample.id} className="p-4 bg-muted rounded-lg">
                               <div className="flex items-center justify-between mb-2">
-                                <span className="font-medium text-foreground">Sample {idx + 1}</span>
+                                <div className="flex items-center gap-3">
+                                  <span className="font-medium text-foreground">Sample {idx + 1}</span>
+                                  <span className="text-sm text-muted-foreground bg-background px-2 py-1 rounded">
+                                    {pred.sample.soilType || 'Unknown Soil'}
+                                  </span>
+                                </div>
                                 {getClassBadge(pred.productivityClass)}
                               </div>
                               <ul className="space-y-1">

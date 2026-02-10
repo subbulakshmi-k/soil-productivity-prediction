@@ -50,8 +50,8 @@ export function NutrientRadarChart({ stats }: NutrientRadarChartProps) {
               border: "1px solid hsl(var(--border))",
               borderRadius: "8px",
             }}
-            formatter={(value: number, _name: string, props: { payload: { actual: number } }) => [
-              props.payload.actual.toFixed(2),
+            formatter={(value: number, _name: string, props: any) => [
+              props.payload?.actual ? props.payload.actual.toFixed(2) : value.toFixed(2),
               "Average",
             ]}
           />

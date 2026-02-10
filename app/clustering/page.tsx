@@ -205,7 +205,7 @@ export default function ClusteringPage() {
                             <div className="flex justify-between">
                               <span className="text-muted-foreground">Avg N:</span>
                               <span className="text-foreground">
-                                {(cluster.samples.reduce((s, d) => s + d.nitrogen, 0) / cluster.samples.length).toFixed(
+                                {(cluster.samples.reduce((s, d) => s + (d.nitrogen || 0), 0) / cluster.samples.length).toFixed(
                                   1,
                                 )}
                               </span>
@@ -214,7 +214,7 @@ export default function ClusteringPage() {
                               <span className="text-muted-foreground">Avg P:</span>
                               <span className="text-foreground">
                                 {(
-                                  cluster.samples.reduce((s, d) => s + d.phosphorus, 0) / cluster.samples.length
+                                  cluster.samples.reduce((s, d) => s + (d.phosphorus || 0), 0) / cluster.samples.length
                                 ).toFixed(1)}
                               </span>
                             </div>
@@ -222,14 +222,14 @@ export default function ClusteringPage() {
                               <span className="text-muted-foreground">Avg K:</span>
                               <span className="text-foreground">
                                 {(
-                                  cluster.samples.reduce((s, d) => s + d.potassium, 0) / cluster.samples.length
+                                  cluster.samples.reduce((s, d) => s + (d.potassium || 0), 0) / cluster.samples.length
                                 ).toFixed(1)}
                               </span>
                             </div>
                             <div className="flex justify-between">
                               <span className="text-muted-foreground">Avg pH:</span>
                               <span className="text-foreground">
-                                {(cluster.samples.reduce((s, d) => s + d.ph, 0) / cluster.samples.length).toFixed(2)}
+                                {(cluster.samples.reduce((s, d) => s + (d.ph || 7), 0) / cluster.samples.length).toFixed(2)}
                               </span>
                             </div>
                           </div>

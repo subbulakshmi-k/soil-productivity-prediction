@@ -1,17 +1,10 @@
 import type React from "react"
 import type { Metadata } from "next"
-import { Geist, Geist_Mono } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 import { Toaster } from "@/components/ui/sonner"
 import { SoilBackgroundAnimation } from "@/components/soil-background-animation"
 import "./globals.css"
 import Head from 'next/head';
-
-const geist = Geist({
-  subsets: ["latin"],
-  display: 'swap',
-  variable: '--font-geist'
-})
 
 export const metadata: Metadata = {
   title: "SoilPredict - ML-Based Soil Productivity Prediction",
@@ -33,7 +26,7 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         <link rel="manifest" href="/site.webmanifest" />
       </head>
-      <body className={`${geist.className} bg-background`}>
+      <body className="bg-background">
         <SoilBackgroundAnimation />
         <Toaster position="top-center" />
         {children}

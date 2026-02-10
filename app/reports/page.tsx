@@ -13,6 +13,7 @@ import { FileText, Download, AlertCircle, Upload, Printer, CheckCircle2 } from "
 import { toast } from "sonner"
 import Link from "next/link"
 import { soilDataStore } from "@/lib/soil-data-store"
+import { calculateStats } from "@/lib/utils"
 import type { SoilSample, DatasetStats, ClusterResult, PredictionResult } from "@/lib/types"
 
 export default function ReportsPage() {
@@ -32,10 +33,23 @@ export default function ReportsPage() {
   })
 
   useEffect(() => {
-    setData(soilDataStore.getData())
-    setStats(soilDataStore.getStats())
-    setClusters(soilDataStore.getClusters())
-    setPredictions(soilDataStore.getPredictions())
+    const storeData = soilDataStore.getData()
+    const storeStats = soilDataStore.getStats()
+    const storeClusters = soilDataStore.getClusters()
+    const storePredictions = soilDataStore.getPredictions()
+    
+    setData(storeData)
+    setClusters(storeClusters)
+    setPredictions(storePredictions)
+    
+    // Calculate stats if not available in store
+    if (storeStats && storeData.length > 0) {
+      setStats(storeStats)
+    } else if (storeData.length > 0) {
+      const calculatedStats = calculateStats(storeData)
+      setStats(calculatedStats)
+      soilDataStore.setStats(calculatedStats)
+    }
   }, [])
 
   const generateReport = async () => {
@@ -234,6 +248,23 @@ export default function ReportsPage() {
                       {reportOptions.includeDataStats && stats && (
                         <div className="section">
                           <h2 className="text-lg font-semibold text-foreground mb-4">Dataset Statistics</h2>
+                          
+                          {/* Soil Type Distribution */}
+                          {stats.soilTypeDistribution && Object.keys(stats.soilTypeDistribution).length > 0 && (
+                            <div className="mb-6">
+                              <h3 className="text-md font-medium text-foreground mb-3">Soil Type Distribution</h3>
+                              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                {Object.entries(stats.soilTypeDistribution).map(([soilType, count]) => (
+                                  <div key={soilType} className="p-3 bg-muted rounded-lg">
+                                    <p className="text-sm font-medium text-foreground">{soilType}</p>
+                                    <p className="text-xs text-muted-foreground">{count} samples</p>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          
+                          {/* Numeric Statistics */}
                           <div className="overflow-x-auto">
                             <table className="w-full text-sm">
                               <thead>
@@ -247,6 +278,7 @@ export default function ReportsPage() {
                               </thead>
                               <tbody>
                                 {Object.entries(stats.summary)
+                                  .filter(([key]) => !['soilType', 'location', 'cluster'].includes(key))
                                   .slice(0, 8)
                                   .map(([key, value]) => (
                                     <tr key={key} className="border-b border-border/50">
@@ -275,6 +307,7 @@ export default function ReportsPage() {
                               <thead>
                                 <tr className="border-b border-border">
                                   <th className="text-left p-2 text-muted-foreground">Sample</th>
+                                  <th className="text-left p-2 text-muted-foreground">Soil Type</th>
                                   <th className="text-right p-2 text-muted-foreground">N</th>
                                   <th className="text-right p-2 text-muted-foreground">P</th>
                                   <th className="text-right p-2 text-muted-foreground">K</th>
@@ -287,17 +320,18 @@ export default function ReportsPage() {
                                 {predictions.slice(0, 15).map((pred, idx) => (
                                   <tr key={pred.sample.id} className="border-b border-border/50">
                                     <td className="p-2 text-foreground">{idx + 1}</td>
+                                    <td className="p-2 text-foreground">{pred.sample.soilType || 'Unknown'}</td>
                                     <td className="text-right p-2 text-muted-foreground">
-                                      {pred.sample.nitrogen.toFixed(1)}
+                                      {(pred.sample.nitrogen || 0).toFixed(1)}
                                     </td>
                                     <td className="text-right p-2 text-muted-foreground">
-                                      {pred.sample.phosphorus.toFixed(1)}
+                                      {(pred.sample.phosphorus || 0).toFixed(1)}
                                     </td>
                                     <td className="text-right p-2 text-muted-foreground">
-                                      {pred.sample.potassium.toFixed(1)}
+                                      {(pred.sample.potassium || 0).toFixed(1)}
                                     </td>
                                     <td className="text-right p-2 text-muted-foreground">
-                                      {pred.sample.ph.toFixed(2)}
+                                      {(pred.sample.ph || 7).toFixed(2)}
                                     </td>
                                     <td className="text-right p-2 text-foreground font-medium">
                                       {pred.productivityScore}

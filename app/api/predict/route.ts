@@ -1,32 +1,65 @@
 import { NextResponse } from 'next/server';
-import { getApiUrl } from '@/lib/api-config';
 
 export const dynamic = 'force-dynamic';
-
-export const config = {
-  api: {
-    bodyParser: {
-      sizeLimit: '10mb',
-    },
-  },
-};
+export const maxDuration = 300; // 5 minutes
+export const maxBodySize = 10485760; // 10mb in bytes
 
 export async function POST(request: Request) {
   try {
-    const requestData = await request.json();
+    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://127.0.0.1:5000';
     
-    const response = await fetch(`${getApiUrl('/api/predict')}`, {
+    // Get the request body as FormData if it's a file upload
+    const contentType = request.headers.get('content-type') || '';
+    
+    let body: BodyInit;
+    let headers: Record<string, string> = {};
+    
+    if (contentType.includes('multipart/form-data')) {
+      // For file uploads, stream the body directly
+      body = request.body || new ReadableStream();
+      headers['Content-Type'] = contentType;
+    } else {
+      // For JSON requests, parse and forward
+      const requestData = await request.json();
+      body = JSON.stringify(requestData);
+      headers['Content-Type'] = 'application/json';
+    }
+    
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 45000); // 45 second timeout for predictions
+    
+    // Prepare request options
+    const requestOptions: RequestInit = {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(requestData),
+      headers,
       cache: 'no-store',
-    });
+      signal: controller.signal,
+    };
+    
+    // Only add body and duplex if we have a body to send
+    if (body) {
+      requestOptions.body = body;
+      // Add duplex option for streaming requests
+      if (contentType.includes('multipart/form-data')) {
+        (requestOptions as any).duplex = 'half';
+      }
+    }
+    
+    const response = await fetch(`${backendUrl}/api/predict`, requestOptions);
+
+    clearTimeout(timeout);
 
     if (!response.ok) {
-      const error = await response.text();
-      throw new Error(`Prediction failed: ${error}`);
+      const errorText = await response.text();
+      console.error('Backend error response:', errorText);
+      return NextResponse.json(
+        { 
+          error: `Prediction failed: ${errorText}`,
+          status: response.status,
+          statusText: response.statusText
+        },
+        { status: response.status }
+      );
     }
 
     const data = await response.json();
@@ -35,8 +68,8 @@ export async function POST(request: Request) {
     console.error('Prediction error:', error);
     return NextResponse.json(
       { 
-        error: error instanceof Error ? error.message : 'Failed to process prediction',
-        success: false 
+        error: error instanceof Error ? error.message : 'Unknown prediction error',
+        type: error?.constructor?.name || 'Unknown'
       },
       { status: 500 }
     );

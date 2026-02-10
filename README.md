@@ -132,7 +132,8 @@ Before you begin, ensure you have the following installed:
 
 | Software | Version | Download Link |
 |----------|---------|---------------|
-| **Node.js** | 18.x or higher | [nodejs.org](https://nodejs.org/) |
+| **Node.js** | 18.x or higher | [nodejs.o
+rg](https://nodejs.org/) |
 | **VS Code** | Latest | [code.visualstudio.com](https://code.visualstudio.com/) |
 | **Git** | Latest | [git-scm.com](https://git-scm.com/) |
 
@@ -492,3 +493,22 @@ This project is licensed under the MIT License.
 - UI components from [shadcn/ui](https://ui.shadcn.com/)
 - Charts powered by [Recharts](https://recharts.org/)
 - Developed using [v0 by Vercel](https://v0.dev/)
+cd "c:\Users\MY-PC\Desktop\soil-productivity-prediction\backend"; .\start_backend.bat
+Columns (தரவு நெடுவரிசைகள்):
+
+N - Nitrogen (நைட்ரஜன்)
+P - Phosphorus (பாஸ்பரஸ்)
+K - Potassium (பொட்டாசியம்)
+pH - Soil pH (மண் அமிலத்தன்மை)
+OC - Organic Carbon (கரிம கரிமம்)
+EC - Electrical Conductivity (மின் கடத்துதிறன்)
+S - Sulphur (சல்பர்)
+Zn - Zinc (துத்தம்)
+Fe - Iron (இரும்பு)
+Cu - Copper (செம்பு)
+Mn - Manganese (மாங்கனீஸ்)
+B - Boron (போரான்)
+Moisture - Soil Moisture (மண் ஈரப்பதம்)
+Temp - Temperature (வெப்பநிலை)
+Humidity - Humidity (ஈரப்பதம்)
+Rainfall - Rainfall (மழை
